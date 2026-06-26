@@ -99,7 +99,92 @@ export const generateQuestionsSchema = {
   }
 }
 
+export const wrongQuestionAnalysisSystemPrompt = () => {
+  return `你是一位专业的小学教育学习顾问，擅长分析学生的错题并提供有针对性的学习建议。
+
+## 你的任务
+分析学生的错题，深入找出错误原因，并给出具体、可操作的改进建议。
+
+## 输出要求
+你必须使用 function calling / tool call 的方式输出结构化数据，调用 analyzeWrongQuestions 函数。
+绝对不要直接在文本回复中输出分析内容，必须通过 tool call 返回。
+
+## 分析要求
+1. **难度评估**：根据题目内容和小学阶段要求，评估题目难度（简单/中等/困难）
+2. **知识点识别**：准确识别题目考查的核心知识点
+3. **错误原因分析**：
+   - 结合学生答案和正确答案的差异
+   - 分析可能的错误原因（如概念不清、计算失误、审题不清、知识遗忘等）
+   - 分析要具体、有针对性，避免空泛
+4. **改进建议**：
+   - 给出具体、可操作的改进方法
+   - 建议要适合小学生的认知水平
+   - 可以包含学习方法、练习方向等
+5. **得分评估**：根据学生答案的接近程度，给出0-10分的得分
+
+## 注意事项
+- 语言要通俗易懂，适合小学生和家长理解
+- 分析要客观、有建设性
+- 鼓励为主，避免打击学生积极性
+- 每题独立分析，不要互相影响
+
+现在，请分析下面的错题，并通过 analyzeWrongQuestions 工具函数返回结果。`
+}
+
+export const analyzeWrongQuestionsSchema = {
+  type: 'function',
+  function: {
+    name: 'analyzeWrongQuestions',
+    description: '分析学生的错题，返回结构化的错题分析结果',
+    parameters: {
+      type: 'object',
+      properties: {
+        analysis: {
+          type: 'array',
+          description: '错题分析结果列表',
+          items: {
+            type: 'object',
+            properties: {
+              questionId: {
+                type: 'number',
+                description: '题目ID，与输入的题目ID对应'
+              },
+              difficulty: {
+                type: 'string',
+                enum: ['简单', '中等', '困难'],
+                description: '题目难度评估'
+              },
+              knowledgePoint: {
+                type: 'string',
+                description: '题目考查的核心知识点'
+              },
+              errorReason: {
+                type: 'string',
+                description: '错误原因分析，要具体、有针对性'
+              },
+              suggestion: {
+                type: 'string',
+                description: '改进建议，要具体、可操作'
+              },
+              score: {
+                type: 'number',
+                description: '学生答案得分，0-10分',
+                minimum: 0,
+                maximum: 10
+              }
+            },
+            required: ['questionId', 'difficulty', 'knowledgePoint', 'errorReason', 'suggestion', 'score']
+          }
+        }
+      },
+      required: ['analysis']
+    }
+  }
+}
+
 export default {
   questionGenerationSystemPrompt,
-  generateQuestionsSchema
+  generateQuestionsSchema,
+  wrongQuestionAnalysisSystemPrompt,
+  analyzeWrongQuestionsSchema
 }

@@ -2,12 +2,15 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAiConfigStore } from '@/stores/aiConfig'
 import { useQuestionStore } from '@/stores/question'
-import { questionTypesDB, questionsDB } from '@/utils/db'
-import { questionGenerationSystemPrompt, generateQuestionsSchema } from '@/utils/prompts'
+import { questionTypesDB, questionsDB, answerRecordsDB } from '@/utils/db'
+import { questionGenerationSystemPrompt, generateQuestionsSchema, wrongQuestionAnalysisSystemPrompt, analyzeWrongQuestionsSchema } from '@/utils/prompts'
 
 export const useAiStore = defineStore('ai', () => {
   const generating = ref(false)
   const generatedQuestions = ref([])
+  const analyzing = ref(false)
+  const analysisResults = ref([])
+  const analysisProgress = ref(0)
 
   const aiConfigStore = useAiConfigStore()
   const questionStore = useQuestionStore()
@@ -209,14 +212,178 @@ export const useAiStore = defineStore('ai', () => {
     generatedQuestions.value = []
   }
 
+  function stripHtml(html) {
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    return tmp.textContent || tmp.innerText || ''
+  }
+
+  function formatUserAnswer(record) {
+    if (record.answerType === 'choice' && record.userAnswer !== undefined && record.userAnswer !== null) {
+      if (typeof record.userAnswer === 'number') {
+        return `选项${String.fromCharCode(65 + record.userAnswer)}`
+      }
+      return String(record.userAnswer)
+    }
+    return record.userAnswer || '未作答'
+  }
+
+  function formatCorrectAnswer(question) {
+    if (!question) return '未知'
+    if (question.answerType === 'choice') {
+      const correctIdx = question.correctIndex ?? 0
+      const options = question.options || []
+      const correctText = options[correctIdx]?.text || options[correctIdx] || ''
+      return `选项${String.fromCharCode(65 + correctIdx)}：${correctText}`
+    }
+    if (question.answerType === 'text') {
+      return question.answerText || '无答案'
+    }
+    return question.answerImage || '见图片'
+  }
+
+  function buildUserPrompt(questions) {
+    const items = questions.map((q, index) => {
+      const content = stripHtml(q.questionContent || q.content || '')
+      const userAnswer = formatUserAnswer(q)
+      const correctAnswer = q.correctAnswer || formatCorrectAnswer(q.question)
+      return `第 ${index + 1} 题（questionId: ${q.questionId || q.id}）：
+题干：${content}
+学生答案：${userAnswer}
+正确答案：${correctAnswer}`
+    })
+    return `请分析以下错题：
+
+${items.join('\n\n')}
+
+请对每道题进行详细分析，并通过 analyzeWrongQuestions 工具函数返回结果。`
+  }
+
+  async function analyzeWrongQuestions(questions) {
+    if (!aiConfigStore.hasValidConfig()) {
+      throw new Error('AI配置不完整，请先配置API密钥和模型')
+    }
+
+    if (!questions || questions.length === 0) {
+      throw new Error('没有需要分析的错题')
+    }
+
+    analyzing.value = true
+    analysisResults.value = []
+    analysisProgress.value = 0
+
+    try {
+      const client = aiConfigStore.getClient()
+      const systemPrompt = wrongQuestionAnalysisSystemPrompt()
+      const userPrompt = buildUserPrompt(questions)
+
+      const result = await client.chatCompletions({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        tools: [analyzeWrongQuestionsSchema],
+        temperature: 0.5,
+        maxTokens: 3000
+      })
+
+      let analysisData = []
+
+      if (result.toolCalls && result.toolCalls.length > 0) {
+        for (const tc of result.toolCalls) {
+          if (tc.function?.name === 'analyzeWrongQuestions') {
+            try {
+              const args = JSON.parse(tc.function.arguments || '{}')
+              if (args.analysis && Array.isArray(args.analysis)) {
+                analysisData = analysisData.concat(args.analysis)
+              }
+            } catch (e) {
+              console.error('Failed to parse tool call arguments:', e)
+            }
+          }
+        }
+      }
+
+      if (analysisData.length === 0 && result.content) {
+        console.warn('No tool calls found, trying to parse content as JSON')
+        try {
+          const jsonMatch = result.content.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0])
+            if (parsed.analysis && Array.isArray(parsed.analysis)) {
+              analysisData = parsed.analysis
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse content as JSON:', e)
+        }
+      }
+
+      if (analysisData.length === 0) {
+        throw new Error('AI未能返回有效的分析结果，请重试')
+      }
+
+      const results = questions.map(q => {
+        const qId = q.questionId || q.id
+        const analysisItem = analysisData.find(a => a.questionId === qId) || analysisData[0]
+        return {
+          questionId: qId,
+          questionContent: q.questionContent || q.content || '',
+          userAnswer: q.userAnswer,
+          correctAnswer: q.correctAnswer,
+          answerType: q.answerType,
+          typeId: q.typeId,
+          recordId: q.recordId || q.id,
+          ...analysisItem
+        }
+      })
+
+      analysisResults.value = results
+      analysisProgress.value = 100
+
+      for (const item of results) {
+        if (item.recordId) {
+          try {
+            await answerRecordsDB.update(item.recordId, {
+              analysis: {
+                difficulty: item.difficulty,
+                knowledgePoint: item.knowledgePoint,
+                errorReason: item.errorReason,
+                suggestion: item.suggestion,
+                score: item.score,
+                analyzedAt: Date.now()
+              }
+            })
+          } catch (e) {
+            console.warn('Failed to save analysis to record:', e)
+          }
+        }
+      }
+
+      return results
+    } finally {
+      analyzing.value = false
+    }
+  }
+
+  function clearAnalysisResults() {
+    analysisResults.value = []
+    analysisProgress.value = 0
+  }
+
   return {
     generating,
     generatedQuestions,
+    analyzing,
+    analysisResults,
+    analysisProgress,
     generateQuestions,
     saveSingleQuestion,
     saveAllQuestions,
     updateGeneratedQuestion,
     removeGeneratedQuestion,
-    clearGeneratedQuestions
+    clearGeneratedQuestions,
+    analyzeWrongQuestions,
+    clearAnalysisResults
   }
 })
