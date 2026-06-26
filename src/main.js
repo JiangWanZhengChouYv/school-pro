@@ -8,7 +8,9 @@ import './assets/styles/global.scss'
 import message from './utils/message'
 
 const app = createApp(App)
+const pinia = createPinia()
 
+// Vue 全局错误处理
 app.config.errorHandler = (err, vm, info) => {
   console.error('[Vue Global Error]', {
     error: err,
@@ -23,6 +25,7 @@ app.config.errorHandler = (err, vm, info) => {
   }
 }
 
+// 未处理的 Promise 错误
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise Rejection]', {
     reason: event.reason,
@@ -36,6 +39,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 })
 
+// Window 全局错误
 window.addEventListener('error', (event) => {
   console.error('[Window Error]', {
     message: event.message,
@@ -47,10 +51,12 @@ window.addEventListener('error', (event) => {
   })
 })
 
-app.use(createPinia())
+// 使用插件
+app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 
+// 全局属性
 app.config.globalProperties.$message = message
 
 app.mount('#app')
