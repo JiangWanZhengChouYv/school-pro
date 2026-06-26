@@ -184,17 +184,22 @@
             </div>
         </div>
 
-        <transition name="fade">
+        <transition name="bounce-in">
           <div v-if="answered" class="feedback-section" :class="{ 'correct': isCurrentCorrect, 'wrong': !isCurrentCorrect }">
-            <div class="feedback-icon">{{ isCurrentCorrect ? '🎉' : '😢'}}</div>
+            <div class="feedback-icon" :class="{ 'animate-bounce': isCurrentCorrect, 'animate-shake': !isCurrentCorrect }">
+              {{ isCurrentCorrect ? '🎉' : '😢'}}
+            </div>
             <div class="feedback-text">
               <strong>{{ isCurrentCorrect ? '回答正确！太棒了！' : '回答错误，继续加油！' }}</strong>
             </div>
             <div v-if="!isCurrentCorrect && currentQuestion.answerType === 'text'" class="correct-answer-show">
-              正确答案：{{ currentQuestion.answerText }}
+              💡 正确答案：{{ currentQuestion.answerText }}
             </div>
             <div v-if="!isCurrentCorrect && currentQuestion.answerType === 'choice'" class="correct-answer-show">
-              正确答案：{{ getChoiceAnswer(currentQuestion) }}
+              💡 正确答案：{{ getChoiceAnswer(currentQuestion) }}
+            </div>
+            <div v-if="isCurrentCorrect" class="encouragement-text">
+              {{ getEncouragement() }}
             </div>
           </div>
         </transition>
@@ -290,6 +295,21 @@ const scoreEmoji = computed(() => {
   return '📚'
 })
 
+const encouragements = [
+  '太棒了！继续保持！🌟',
+  '你真厉害！👏',
+  '好样的！再接再厉！💪',
+  '聪明的小朋友！🧠',
+  '完美！你是最棒的！🏆',
+  '太厉害了！继续加油！🚀',
+  '答对了！你真棒！⭐',
+  '优秀！为你点赞！👍'
+]
+
+function getEncouragement() {
+  return encouragements[Math.floor(Math.random() * encouragements.length)]
+}
+
 function shuffleArray(array) {
   const arr = [...array]
   for (let i = arr.length - 1; i > 0; i--) {
@@ -360,12 +380,22 @@ function saveAnswerRecord(isCorrect) {
     isCorrect
   })
 
+  let correctAnswerText = ''
+  if (currentQuestion.value.answerType === 'choice') {
+    correctAnswerText = getChoiceAnswer(currentQuestion.value)
+  } else if (currentQuestion.value.answerType === 'text') {
+    correctAnswerText = currentQuestion.value.answerText
+  }
+
   answerStore.addRecord({
     questionId: currentQuestion.value.id,
     typeId: typeId.value,
     userAnswer: userAnswerText,
     isCorrect,
-    questionContent: currentQuestion.value.content
+    questionContent: currentQuestion.value.content,
+    correctAnswer: correctAnswerText,
+    answerType: currentQuestion.value.answerType,
+    answerImage: currentQuestion.value.answerImage || ''
   })
 }
 
@@ -679,54 +709,118 @@ onMounted(async () => {
 
 .feedback-section {
   margin-top: 24px;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 24px;
+  border-radius: 16px;
   text-align: center;
+  position: relative;
+  overflow: hidden;
 
   &.correct {
-    background: #f0f9eb;
-    border: 1px solid #67c23a;
+    background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
+    border: 2px solid #67c23a;
+
+    .feedback-text strong {
+      color: #67c23a;
+    }
   }
 
   &.wrong {
-    background: #fef0f0;
-    border: 1px solid #f56c6c;
-  }
+    background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+    border: 2px solid #f56c6c;
 
-  .feedback-icon {
-    font-size: 40px;
-    margin-bottom: 8px;
-  }
-
-  .feedback-text {
-    font-size: 18px;
-    font-weight: 600;
-
-    &.correct strong {
-      color: #67c23a;
-    }
-
-    &.wrong strong {
+    .feedback-text strong {
       color: #f56c6c;
     }
   }
 
+  .feedback-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: inline-block;
+  }
+
+  .feedback-text {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
   .correct-answer-show {
-    margin-top: 8px;
-    font-size: 14px;
-    color: #666;
+    margin-top: 12px;
+    font-size: 15px;
+    color: #606266;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 10px 16px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+
+  .encouragement-text {
+    margin-top: 12px;
+    font-size: 16px;
+    color: #67c23a;
+    font-weight: 600;
   }
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.3s ease;
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.bounce-in-enter-active {
+  animation: bounceIn 0.5s ease;
+}
+
+.bounce-in-leave-active {
+  transition: all 0.2s ease;
+}
+
+.bounce-in-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: scale(0.9);
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 0.6s ease;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease;
 }
 
 .practice-footer {

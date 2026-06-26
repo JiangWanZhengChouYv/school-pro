@@ -1,29 +1,32 @@
 <template>
-  <div id="app">
-    <el-menu :default-active="activeIndex" mode="horizontal" router>
-      <el-menu-item index="/">学生首页</el-menu-item>
-      <el-menu-item index="/student/practice">答题练习</el-menu-item>
-      <el-menu-item index="/parent">家长首页</el-menu-item>
-    </el-menu>
-    <router-view />
-  </div>
+  <router-view v-slot="{ Component, route }">
+    <transition name="page" mode="out-in">
+      <component :is="Component" :key="route.fullPath" />
+    </transition>
+  </router-view>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
-const activeIndex = computed(() => route.path)
 </script>
 
 <style lang="scss">
 #app {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
 }
 
-.el-menu {
-  margin-bottom: 20px;
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 </style>

@@ -8,28 +8,36 @@
         </el-button>
       </div>
 
-      <el-table
-        v-loading="questionStore.loading"
-        :data="questionStore.typesWithCount"
-        style="width: 100%"
-        empty-text="暂无类型数据"
-      >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="类型名称" />
-        <el-table-column prop="questionCount" label="题目数量" width="120" />
-        <el-table-column label="创建时间" width="200">
-          <template #default="{ row }">
-            {{ formatDate(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-wrapper">
+        <el-table
+          v-loading="questionStore.loading"
+          :data="questionStore.typesWithCount"
+          style="width: 100%"
+          empty-text="暂无类型数据"
+        >
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="name" label="类型名称" min-width="150" />
+          <el-table-column prop="questionCount" label="题目数量" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.questionCount > 0 ? 'success' : 'info'" size="small">
+                {{ row.questionCount }} 题
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="200">
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <el-empty
         v-if="!questionStore.loading && questionStore.typesWithCount.length === 0"
@@ -152,8 +160,31 @@ onMounted(async () => {
 }
 
 .content-card {
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+
   .toolbar {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+  }
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  .el-table {
+    min-width: 600px;
+  }
+}
+
+// 移动端适配
+@media (max-width: 768px) {
+  .content-card {
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
   }
 }
 </style>

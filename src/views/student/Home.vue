@@ -34,6 +34,26 @@
       </div>
     </div>
 
+    <div class="quick-section">
+      <div class="quick-card wrong-book-card" @click="goToWrongBook">
+        <div class="quick-icon">📕</div>
+        <div class="quick-info">
+          <h3 class="quick-title">错题本</h3>
+          <p class="quick-desc">复习做错的题目</p>
+        </div>
+        <div class="quick-badge" v-if="wrongCount > 0">{{ wrongCount }}</div>
+        <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+      </div>
+      <div class="quick-card stats-card" @click="goToStats">
+        <div class="quick-icon">📊</div>
+        <div class="quick-info">
+          <h3 class="quick-title">我的成绩</h3>
+          <p class="quick-desc">查看答题统计</p>
+        </div>
+        <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+      </div>
+    </div>
+
     <div class="types-section">
       <h2 class="section-title">
         <span class="title-icon">📚</span>
@@ -78,6 +98,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { useQuestionStore } from '@/stores/question'
 import { useAnswerStore } from '@/stores/answer'
 
@@ -109,6 +130,10 @@ const accuracyRate = computed(() => {
   return Math.round((answerStore.stats.correct / answerStore.stats.total) * 100)
 })
 
+const wrongCount = computed(() => {
+  return answerStore.stats.wrong
+})
+
 function getGradient(index) {
   return gradients[index % gradients.length]
 }
@@ -123,12 +148,21 @@ function startPractice(typeId) {
   router.push(`/student/practice?typeId=${typeId}`)
 }
 
+function goToWrongBook() {
+  router.push('/student/wrong-book')
+}
+
+function goToStats() {
+  router.push('/student/stats')
+}
+
 onMounted(async () => {
   loading.value = true
   try {
     await questionStore.fetchTypes()
     await questionStore.fetchQuestions()
     await answerStore.fetchStats()
+    await answerStore.fetchWrongRecords()
   } finally {
     loading.value = false
   }
@@ -186,7 +220,94 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  margin-bottom: 24px;
+}
+
+.quick-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
   margin-bottom: 32px;
+}
+
+.quick-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .quick-icon {
+    font-size: 40px;
+    flex-shrink: 0;
+  }
+
+  .quick-info {
+    flex: 1;
+
+    .quick-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #303133;
+      margin: 0 0 4px 0;
+    }
+
+    .quick-desc {
+      font-size: 13px;
+      color: #909399;
+      margin: 0;
+    }
+  }
+
+  .quick-badge {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .quick-arrow {
+    font-size: 20px;
+    color: #c0c4cc;
+    transition: transform 0.3s;
+  }
+
+  &:hover .quick-arrow {
+    transform: translateX(4px);
+    color: #667eea;
+  }
+
+  &.wrong-book-card::before {
+    background: linear-gradient(180deg, #f5576c 0%, #f093fb 100%);
+  }
+
+  &.stats-card::before {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  }
 }
 
 .stat-card {
@@ -247,8 +368,8 @@ onMounted(async () => {
 }
 
 .type-card {
-  border-radius: 20px;
-  padding: 28px 24px;
+  border-radius: 24px;
+  padding: 32px 24px;
   color: #fff;
   cursor: pointer;
   transition: transform 0.3s, box-shadow 0.3s;
@@ -258,6 +379,7 @@ onMounted(async () => {
   text-align: center;
   position: relative;
   overflow: hidden;
+  min-height: 280px;
 
   &::before {
     content: '';
@@ -280,23 +402,28 @@ onMounted(async () => {
     }
   }
 
+  &:active {
+    transform: translateY(-2px) scale(1.01);
+  }
+
   .type-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
+    font-size: 56px;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
   }
 
   .type-name {
-    font-size: 20px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
     margin-bottom: 8px;
   }
 
   .type-count {
-    margin-bottom: 20px;
-    opacity: 0.9;
+    margin-bottom: 24px;
+    opacity: 0.95;
 
     .count-number {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 700;
     }
 
@@ -308,23 +435,41 @@ onMounted(async () => {
 
   .start-btn {
     width: 100%;
-    border-radius: 25px;
+    height: 52px;
+    border-radius: 26px;
+    font-size: 16px;
     font-weight: 600;
     background: rgba(255, 255, 255, 0.25);
     border: 2px solid rgba(255, 255, 255, 0.4);
     color: #fff;
     backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
 
     &:hover {
       background: rgba(255, 255, 255, 0.35);
       color: #fff;
+      transform: translateY(-2px);
+    }
+
+    &:active {
+      transform: translateY(0);
     }
 
     &.is-disabled {
       background: rgba(255, 255, 255, 0.15);
       color: rgba(255, 255, 255, 0.6);
       border-color: rgba(255, 255, 255, 0.2);
+      cursor: not-allowed;
     }
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
   }
 }
 
@@ -365,6 +510,10 @@ onMounted(async () => {
   }
 
   .stats-section {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-section {
     grid-template-columns: 1fr;
   }
 
