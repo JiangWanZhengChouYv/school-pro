@@ -1,5 +1,5 @@
 <template>
-  <div class="home-dashboard">
+  <div class="home-dashboard" v-loading="loading">
     <div class="welcome-section">
       <h2 class="welcome-title">欢迎使用家长管理中心 👋</h2>
       <p class="welcome-desc">管理孩子的学习进度，轻松掌握学习情况</p>
@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   Document,
   Collection,
@@ -100,6 +100,8 @@ import { useAnswerStore } from '@/stores/answer'
 
 const questionStore = useQuestionStore()
 const answerStore = useAnswerStore()
+
+const loading = ref(true)
 
 const correctRate = computed(() => {
   if (answerStore.stats.total === 0) return 0
@@ -150,30 +152,51 @@ const quickActions = [
 ]
 
 onMounted(async () => {
-  await questionStore.fetchTypes()
-  await questionStore.fetchQuestions()
-  await answerStore.fetchStats()
+  loading.value = true
+  try {
+    await questionStore.fetchTypes()
+    await questionStore.fetchQuestions()
+    await answerStore.fetchStats()
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
 <style scoped lang="scss">
 .home-dashboard {
   padding: 0;
+  animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .welcome-section {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  color: #fff;
 
   .welcome-title {
     font-size: 24px;
-    font-weight: 600;
-    color: #1f2937;
+    font-weight: 700;
     margin-bottom: 8px;
+    color: #fff;
   }
 
   .welcome-desc {
     font-size: 14px;
-    color: #6b7280;
+    color: rgba(255, 255, 255, 0.9);
   }
 }
 
@@ -185,11 +208,18 @@ onMounted(async () => {
 
   .stat-card {
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: default;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
 
     :deep(.el-card__body) {
-      padding: 20px;
+      padding: 24px;
     }
 
     .stat-content {
@@ -213,7 +243,12 @@ onMounted(async () => {
     }
 
     .stat-icon {
-      opacity: 0.8;
+      opacity: 0.9;
+      transition: transform 0.3s ease;
+    }
+
+    &:hover .stat-icon {
+      transform: scale(1.1);
     }
   }
 
@@ -290,10 +325,13 @@ onMounted(async () => {
     .action-card {
       cursor: pointer;
       border-radius: 12px;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: all 0.3s ease;
+      border: 1px solid #e5e7eb;
 
       &:hover {
-        transform: translateY(-2px);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        border-color: #667eea;
       }
 
       :deep(.el-card__body) {
@@ -314,6 +352,11 @@ onMounted(async () => {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        transition: transform 0.3s ease;
+      }
+
+      &:hover .action-icon {
+        transform: scale(1.1);
       }
 
       .action-info {
@@ -325,6 +368,7 @@ onMounted(async () => {
           font-weight: 600;
           color: #1f2937;
           margin-bottom: 4px;
+          transition: color 0.3s ease;
         }
 
         .action-desc {
@@ -339,20 +383,57 @@ onMounted(async () => {
       .action-arrow {
         color: #9ca3af;
         flex-shrink: 0;
+        transition: all 0.3s ease;
+      }
+
+      &:hover .action-arrow {
+        color: #667eea;
+        transform: translateX(4px);
       }
     }
   }
 }
 
+// 平板端适配
 @media (max-width: 1024px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .welcome-section {
+    padding: 20px;
+
+    .welcome-title {
+      font-size: 20px;
+    }
+  }
 }
 
-@media (max-width: 640px) {
+// 移动端适配
+@media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .welcome-section {
+    padding: 16px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+
+    .welcome-title {
+      font-size: 18px;
+    }
+
+    .welcome-desc {
+      font-size: 13px;
+    }
+  }
+
+  .quick-actions-section {
+    .actions-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }
 </style>

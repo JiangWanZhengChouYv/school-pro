@@ -4,6 +4,7 @@ import { useAiConfigStore } from '@/stores/aiConfig'
 import { useQuestionStore } from '@/stores/question'
 import { questionTypesDB, questionsDB, answerRecordsDB } from '@/utils/db'
 import { questionGenerationSystemPrompt, generateQuestionsSchema, wrongQuestionAnalysisSystemPrompt, analyzeWrongQuestionsSchema } from '@/utils/prompts'
+import { handleAIError, handleDBError } from '@/utils/errorHandler'
 
 export const useAiStore = defineStore('ai', () => {
   const generating = ref(false)
@@ -138,6 +139,13 @@ export const useAiStore = defineStore('ai', () => {
 
       generatedQuestions.value = normalizeQuestions(questionsData)
       return generatedQuestions.value
+    } catch (err) {
+      if (err.message === 'AI未能返回有效的题目数据，请重试') {
+        handleAIError(err, false)
+      } else {
+        handleAIError(err, false)
+      }
+      throw err
     } finally {
       generating.value = false
     }
@@ -152,28 +160,33 @@ export const useAiStore = defineStore('ai', () => {
   }
 
   async function saveSingleQuestion(questionData) {
-    const typeId = await getOrCreateType(questionData.typeName)
-    
-    const data = {
-      typeId,
-      content: questionData.content,
-      answerType: questionData.answerType
-    }
+    try {
+      const typeId = await getOrCreateType(questionData.typeName)
+      
+      const data = {
+        typeId,
+        content: questionData.content,
+        answerType: questionData.answerType
+      }
 
-    if (questionData.answerType === 'text') {
-      data.answerText = questionData.answerText
-    } else if (questionData.answerType === 'choice') {
-      data.options = questionData.options
-      data.correctIndex = questionData.correctIndex
-    } else if (questionData.answerType === 'image') {
-      data.answerImage = questionData.answerImage
-    }
+      if (questionData.answerType === 'text') {
+        data.answerText = questionData.answerText
+      } else if (questionData.answerType === 'choice') {
+        data.options = questionData.options
+        data.correctIndex = questionData.correctIndex
+      } else if (questionData.answerType === 'image') {
+        data.answerImage = questionData.answerImage
+      }
 
-    const id = await questionsDB.add(data)
-    await questionStore.fetchTypes()
-    await questionStore.fetchQuestions()
-    
-    return id
+      const id = await questionsDB.add(data)
+      await questionStore.fetchTypes()
+      await questionStore.fetchQuestions()
+      
+      return id
+    } catch (err) {
+      handleDBError(err, '保存题目')
+      throw err
+    }
   }
 
   async function saveAllQuestions() {
@@ -361,6 +374,9 @@ ${items.join('\n\n')}
       }
 
       return results
+    } catch (err) {
+      handleAIError(err, false)
+      throw err
     } finally {
       analyzing.value = false
     }
