@@ -120,9 +120,12 @@ export const questionsDB = {
   },
 
   async getByTypeId(typeId) {
+    if (typeId === null || typeId === undefined || typeId === '' || isNaN(typeId)) {
+      return []
+    }
     const db = await initDB()
     const index = db.transaction(STORES.QUESTIONS).store.index('typeId')
-    return index.getAll(typeId)
+    return index.getAll(Number(typeId))
   },
 
   async update(id, data) {
@@ -169,18 +172,27 @@ export const answerRecordsDB = {
   },
 
   async getByQuestionId(questionId) {
+    if (questionId === null || questionId === undefined || questionId === '' || isNaN(questionId)) {
+      return []
+    }
     const db = await initDB()
     const index = db.transaction(STORES.ANSWER_RECORDS).store.index('questionId')
-    return index.getAll(questionId)
+    return index.getAll(Number(questionId))
   },
 
   async getByTypeId(typeId) {
+    if (typeId === null || typeId === undefined || typeId === '' || isNaN(typeId)) {
+      return []
+    }
     const db = await initDB()
     const index = db.transaction(STORES.ANSWER_RECORDS).store.index('typeId')
-    return index.getAll(typeId)
+    return index.getAll(Number(typeId))
   },
 
   async getByCorrect(isCorrect) {
+    if (isCorrect === null || isCorrect === undefined || isCorrect === '') {
+      return []
+    }
     const db = await initDB()
     const index = db.transaction(STORES.ANSWER_RECORDS).store.index('isCorrect')
     return index.getAll(isCorrect)

@@ -264,7 +264,14 @@ const showResult = ref(false)
 const showWrongAnswers = ref(false)
 const wrongAnswers = ref([])
 
-const typeId = computed(() => Number(route.query.typeId))
+const typeId = computed(() => {
+  const raw = route.query.typeId
+  if (raw === null || raw === undefined || raw === '') {
+    return null
+  }
+  const num = Number(raw)
+  return isNaN(num) ? null : num
+})
 
 const currentQuestion = computed(() => {
   return questions.value[currentIndex.value] || {}
@@ -468,6 +475,10 @@ onMounted(async () => {
   loading.value = true
   try {
     await questionStore.fetchTypes()
+    if (typeId.value === null) {
+      questions.value = []
+      return
+    }
     const typeQuestions = await questionStore.fetchQuestionsByTypeId(typeId.value)
     questions.value = shuffleArray(typeQuestions)
   } finally {
